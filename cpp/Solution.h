@@ -9,6 +9,18 @@
 #include "utils/FunctionTracer.h"
 #include "utils/EyePatterns.h"
 
+using PatternView = std::array<std::string_view, EYE_PATTERN_COL_SIZE>;
+
+static constexpr const auto ALL_PATTERNS = []{
+	std::array<PatternView, EYE_PATTERNS_COUNT> result;
+	for (size_t i = 0; i < result.size(); ++i) {
+		for (size_t j = 0; j < result[i].size(); ++j) {
+			result[i][j] = EYE_PATTERNS[i][j];
+		}
+	}
+	return result;
+}();
+
 void print(const StrideImage &image) {
 
     for (int row = 0; row < image.resolution.height; ++row) {
@@ -20,7 +32,7 @@ void print(const StrideImage &image) {
     }
 }
 
-bool isMatched(const StrideImage &image, int imageCol, int imageRow, const EyePattern &pattern) {
+bool isMatched(const StrideImage &image, int imageCol, int imageRow, const PatternView &pattern) {
     int rowOffset = 0;
 
     if (static_cast<size_t>(image.resolution.height) < imageRow + pattern.size()) {
@@ -29,12 +41,12 @@ bool isMatched(const StrideImage &image, int imageCol, int imageRow, const EyePa
 
     for (auto &row: pattern) {
 
-        if (static_cast<size_t>(image.resolution.width) < imageCol + std::string_view(row).size()) {
+        if (static_cast<size_t>(image.resolution.width) < imageCol + row.size()) {
             return false;
         }
 
         int colOffset = 0;
-        for (char col: std::string_view(row)) {
+        for (char col: row) {
             auto red = image.redPixels.at((imageRow + rowOffset) * image.resolution.width + imageCol + colOffset);
 
             if (col != ' ') {
@@ -51,9 +63,9 @@ bool isMatched(const StrideImage &image, int imageCol, int imageRow, const EyePa
     return true;
 }
 
-const EyePattern *match(const StrideImage &image, int imageCol, int imageRow) {
+const PatternView *match(const StrideImage &image, int imageCol, int imageRow) {
 
-    for (auto &pattern: EYE_PATTERNS) {
+    for (auto &pattern: ALL_PATTERNS) {
         if (isMatched(image, imageCol, imageRow, pattern)) {
             return &pattern;
         }
@@ -62,17 +74,17 @@ const EyePattern *match(const StrideImage &image, int imageCol, int imageRow) {
     return nullptr;
 }
 
-void filter(StrideImage &image, int imageCol, int imageRow, const EyePattern &pattern) {
+void filter(StrideImage &image, int imageCol, int imageRow, const PatternView &pattern) {
 
     int rowOffset = 0;
 
     for (auto &row: pattern) {
         int colOffset = 0;
 
-        for ([[maybe_unused]]char col: std::string_view(row)) {
+        for ([[maybe_unused]]char col: row) {
             auto &red = image.redPixels.at((imageRow + rowOffset) * image.resolution.width + imageCol + colOffset);
 
-            if (red >= 200 && std::string_view(pattern.at(rowOffset)).at(colOffset)) {
+            if (red >= 200 && pattern.at(rowOffset).at(colOffset)) {
                 red -= 150;
             }
 
